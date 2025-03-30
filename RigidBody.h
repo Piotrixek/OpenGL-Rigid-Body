@@ -6,7 +6,6 @@ class RigidBody {
 public:
     glm::vec3 position;
     glm::vec3 velocity;
-    glm::vec3 acceleration;
     glm::quat orientation;
     glm::vec3 angularVelocity;
     float mass;
@@ -17,4 +16,7 @@ public:
     void applyForce(const glm::vec3& force);
     void applyTorque(const glm::vec3& torque);
     void update(float dt);
+private:
+    glm::vec3 forceAccumulator;
+    glm::vec3 torqueAccumulator;
 };

@@ -41,6 +41,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    // Sky background (a simple quad using the sky shader)
     unsigned int skyVAO, skyVBO;
     float skyVertices[] = { -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f };
     glGenVertexArrays(1, &skyVAO);
@@ -64,23 +65,28 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return -1;
     }
 
+    // Initialize scene geometry
     initCube();
     initPlane();
 
+    // Initialize extra systems
     ShadowMap shadowMap;
     shadowMap.init();
     ParticleSystem particleSystem(100);
     Trajectory trajectory;
     FPSCounter fpsCounter;
 
+    // Initialize PhysicsEngine and bodies
     PhysicsEngine physicsEngine;
     RigidBody body1(glm::vec3(-1.0f, 5.0f, 0.0f), 1.0f, 0.5f);
     RigidBody body2(glm::vec3(1.0f, 8.0f, 0.0f), 1.0f, 0.5f);
     physicsEngine.addBody(&body1);
     physicsEngine.addBody(&body2);
 
+    // Set camera follow target (from CameraFollow.h)
     followTarget = &body1;
 
+    // ImGui setup
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -92,6 +98,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
+    // Simulation & UI parameters
     bool windEnabled = true, showPlane = true, cameraFollowToggle = false, debugMode = false;
     float windMultiplier = 1.0f, simulationSpeed = 1.0f;
     float cubeColor[3] = { 0.8f, 0.3f, 0.3f };
@@ -106,18 +113,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         lastFrame = currentFrame;
         processInput(window);
 
+        // Update extra systems
         fpsCounter.update(deltaTime);
         particleSystem.update(deltaTime);
         if (cameraFollowToggle) { updateCameraFollow(); }
         trajectory.addPoint(body1.position);
 
+        // ImGui controls
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         ImGui::Begin("Controls");
         ImGui::Text("RigidBody 1 Pos: (%.2f, %.2f, %.2f)", body1.position.x, body1.position.y, body1.position.z);
         ImGui::Text("RigidBody 2 Pos: (%.2f, %.2f, %.2f)", body2.position.x, body2.position.y, body2.position.z);
-        ImGui::SliderFloat("Gravity", &gravityMultiplier, 0.0f, 5.0f);
+        ImGui::SliderFloat("Gravity Multiplier", &gravityMultiplier, 0.0f, 5.0f);
         physicsEngine.gravityMultiplier = gravityMultiplier;
         ImGui::Checkbox("Wind Enabled", &windEnabled);
         ImGui::SliderFloat("Wind Multiplier", &windMultiplier, 0.0f, 20.0f);
@@ -144,23 +153,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         ImGui::Text("FPS: %.1f", fpsCounter.fps);
         ImGui::End();
 
+        // Update physics with simulation speed
         physicsEngine.update(deltaTime * simulationSpeed);
 
-
+        // Render scene
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glm::mat4 projection = camera.getProjectionMatrix(1280.0f / 720.0f);
         glm::mat4 view = camera.getViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
 
-
+        // Draw sky background (simple quad)
         glDisable(GL_DEPTH_TEST);
         glUseProgram(skyShader);
         glBindVertexArray(skyVAO);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glEnable(GL_DEPTH_TEST);
 
-
+        // Draw rigid bodies using rigidBodyShader
         glUseProgram(rigidBodyShader);
         int modelLoc = glGetUniformLocation(rigidBodyShader, "model");
         int viewLoc = glGetUniformLocation(rigidBodyShader, "view");
